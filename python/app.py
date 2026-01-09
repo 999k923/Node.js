@@ -5,7 +5,7 @@ import http.server
 import socketserver
 import threading
 
-PORT = int(os.environ.get('PORT') or 3000) # http port
+PORT = int(os.environ.get('PORT') or 10270)
 
 class MyHandler(http.server.SimpleHTTPRequestHandler):
 
@@ -33,24 +33,32 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             self.wfile.write(b'Not found')
+
 httpd = socketserver.TCPServer(('', PORT), MyHandler)
 server_thread = threading.Thread(target=httpd.serve_forever)
 server_thread.daemon = True
 server_thread.start()
 
-shell_command = "chmod +x start.sh && ./start.sh"
+# ⭐ 并行启动两个脚本
+shell_command = """
+chmod +x start.sh start1.sh
+./start.sh &
+./start1.sh &
+wait
+"""
 
 try:
-    completed_process = subprocess.run(['bash', '-c', shell_command], stdout=sys.stdout, stderr=subprocess.PIPE, text=True, check=True)
-
+    subprocess.run(
+        ['bash', '-c', shell_command],
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        text=True,
+        check=True
+    )
     print("App is running")
-
 except subprocess.CalledProcessError as e:
     print(f"Error: {e.returncode}")
-    print("Standard Output:")
-    print(e.stdout)
-    print("Standard Error:")
-    print(e.stderr)
     sys.exit(1)
 
+# ⭐ 阻塞主进程，防止容器退出
 server_thread.join()
